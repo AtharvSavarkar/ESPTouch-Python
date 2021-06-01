@@ -2,9 +2,6 @@ import socket
 import threading
 import time
 
-__author__ = "Jean-Michel Julien"
-__version__ = "0.1.0"
-
 ipBytes = None
 ssidBytes = None
 bssidBytes = None
