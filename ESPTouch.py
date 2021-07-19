@@ -26,8 +26,6 @@ def getClientSocket():
     if useBroadcast:
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
 
-    # not_clear
-
     return sock
 
 
@@ -58,7 +56,7 @@ def getNextTargetAddress():
     # if broadcast is kept true then get is always return ("255.255.255.255", 7001)
 
     if useBroadcast:
-        return ("255.255.255.255", 7001)
+        return "255.255.255.255", 7001
     else:
 
         # this part is for multicast - will not run if broadcast is true
@@ -66,7 +64,7 @@ def getNextTargetAddress():
         addressCount += 1
         multicastAddress = "234.{}.{}.{}".format(addressCount, addressCount, addressCount)
         addressCount %= 100
-        return (multicastAddress, 7001)
+        return multicastAddress, 7001
 
 
 # Following is cyclic redundancy check function - checks if there is any error in sending/receiving data using a CRC code
@@ -261,12 +259,12 @@ def sendData():
 
     prepareDataToSend()  # Encodes data
     print("Sending data...")
-    for i in range(5):  # Number of iterations of sending data can be increases for higher probability of connecting
+    for i in range(8):  # Number of iterations of sending data can be increases for higher probability of connecting
 
-        # sendGuideCode() runs for 2 secs and transmits every 8 milisecs
+        # sendGuideCode() runs for 2 secs and transmits every 8 milliseconds
         sendGuideCode()
 
-        # sendDataCode() runs for 4 secs and transmits every 8 milisecs
+        # sendDataCode() runs for 4 secs and transmits every 8 milliseconds
         sendDataCode()
 
         # Total time for which transmission will be on = (2 + 4)*(number of loops)
@@ -318,7 +316,7 @@ receive_ip = "0.0.0.0"
 receive_port = 18266
 
 
-def receive():
+def receive(number_of_devices_to_connect, timeout):
     ip = "0.0.0.0"  # ip = 0.0.0.0 means it will receive from every ip that is transmitting on given port (as ip address of chip will be unknown)
     # similar analogy to Matlab UDP receiver object - dsp.UDPReceiver
     # multiple (different) packets can be received if multiple devices are simultaneously transmitting on 18266 port
@@ -329,53 +327,46 @@ def receive():
     # IMPORTANT - Don't try to run any other software in parallel to receive on this port as this will lead to error
 
     # Create a UDP socket
-    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # socket.AF_INET is like a tuple of (host, port) #not_sure
+    socket_receive = socket.socket(socket.AF_INET,
+                                   socket.SOCK_DGRAM)  # socket.AF_INET is like a tuple of (host, port) #not_sure
     # socket.SOCK_DGRAM defined UDP communication protocol (sock.SOCK_STREAM for TCP)
 
     # Bind the socket to the port
     server_address = (ip, port)
-    s.bind(server_address)
+    socket_receive.bind(server_address)
 
-    print('Receiver running...')
-    print()
+    print('Receiver running...\n')
+
+    socket_timeout = timeout
+    socket_receive.settimeout(socket_timeout)
 
     data_array = []
-    address_array = []
+    while True:
+        try:
+            data, address = socket_receive.recvfrom(4096)
+            data_array.append(data)
+            print(data, address)
 
-    socket_timeout = 60
-    s.settimeout(socket_timeout)
+            # Removing repeating entries from data
 
-    for i in range(5):
+            data_array = list(set(data_array))
 
-        data, address = s.recvfrom(4096)
+            # receive() function will return as soon as it gets data from specified number of devices
+            if len(data_array) == number_of_devices_to_connect:
+                return list(set(data_array))
+            else:
+                pass
 
-        data_array.append(data)
-        address_array.append(address)
-
-    if (len(set(data_array)) == 1):
-        if (len(set(address_array)) == 1):
-            print('Data Received from ESP8266')
-            print()
-
-    # Data array obtained from chip consist of 11 elements
-    # First element denotes size of data provided (ssid + password + ip + bssid + ....)
-    # Next 6 elements is MAC ID of the chip (convert it to hex using hex() to get MAC ID)
-    # Last 4 elements is IP Address of the chip
-
-    mac_id = ''
-    for i in range(7)[1::]:
-        if len(hex(data[i])) == 3:
-            mac_id += '0' + hex(data[i])[-1]
-        if len(hex(data[i])) == 4:
-            mac_id += hex(data[i])[-2::]
-
-    print("MAC ID of Chip is -", mac_id)
-    print("IP Address of Chip is - {}.{}.{}.{}".format(data[-4], data[-3], data[-2], data[-1]))
-
-    return mac_id
+        except socket.timeout:
+            # print('Socket timeout encountered !')
+            # set() will remove repeating entries in data
+            return list(set(data_array))
 
 
-def ESPTouch(wifi_ssid, wifi_password):
+def ESPTouch(wifi_ssid, wifi_password, number_of_devices_to_connect=1, timeout=60):
+    # Just attempting to convert number_of_devices_to_connect to int in case someone enters string
+    number_of_devices_to_connect = int(number_of_devices_to_connect)
+
     # Change variables related to wifi from here
     ssid = wifi_ssid
 
@@ -389,7 +380,7 @@ def ESPTouch(wifi_ssid, wifi_password):
     router_ip = "0.0.0.0"
 
     # This is an optional parameter
-    # Can be found by command "netsh wlan show interfaces" in cmd
+    # Can be found by command "netsh wlan show interfaces" in cmd (for windows)
     # If BSSID of router is unknown then keep "router_bssid = None"
     # Remove colons from BSSID e.g. if BSSID = b8:c1:ac:a6:35:93 then keep "router_bssid = "b8c1aca63593""
     router_bssid = None
@@ -398,13 +389,35 @@ def ESPTouch(wifi_ssid, wifi_password):
     # Threading is used as sending and receiving data should start simultaneously
     threading.Thread(target=sendData).start()
 
-    # Receive function is kept in try as it returns timeout error after some duration (as set in receive function)
-    try:
-        mac_id = receive()
-    # except will run only if socket encounters timeout (otherwise error will be printed)
-    except socket.timeout:
-        print('Did not receive anything')
-        return -1
-        pass
+    recv_data_array = receive(number_of_devices_to_connect, timeout)
 
-    return mac_id
+    if len(recv_data_array) == 0:
+        print('Did not receive anything')
+        return [-1]
+    elif len(recv_data_array) > 0:
+        print('Number of devices connected -> {}'.format(len(recv_data_array)))
+
+        mac_id_array = []
+        for i in recv_data_array:
+
+            # Data array obtained from chip consist of 11 elements
+            # First element denotes size of data provided (ssid + password + ip + bssid + ....)
+            # Next 6 elements is MAC ID of the chip (convert it to hex using hex() to get MAC ID)
+            # Last 4 elements is IP Address of the chip
+
+            mac_id = ''
+            for j in range(1, 7):
+                if len(hex(i[j])) == 3:
+                    mac_id += '0' + hex(i[j])[-1]
+                if len(hex(i[j])) == 4:
+                    mac_id += hex(i[j])[-2::]
+
+            mac_id_array.append(mac_id)
+            print('\nDetails regarding connected chip is as following')
+            print("MAC ID of Chip is -", mac_id)
+            print("IP Address of Chip is - {}.{}.{}.{}\n".format(i[-4], i[-3], i[-2], i[-1]))
+
+        return mac_id_array
+    else:
+        print('Unknown error !')
+        return [-1]
