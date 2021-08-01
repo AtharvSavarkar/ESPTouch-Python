@@ -34,7 +34,7 @@ def sendPacket(_socket, _destination, _size):
     # _destination is a (host, port) tuple -- e.g. ('192.168.1.1', 8032)
     # _size is integer -- not_clear
 
-    if isinstance(_socket, socket.socket) is not True:  # "is not True" is replaced by "is False" #change
+    if isinstance(_socket, socket.socket) is not True:
         raise ValueError("sendPacket error invalid socket object")
 
     # The isinstance() function returns True if the specified object is of the specified type, otherwise False
@@ -328,7 +328,7 @@ def receive(number_of_devices_to_connect, timeout):
 
     # Create a UDP socket
     socket_receive = socket.socket(socket.AF_INET,
-                                   socket.SOCK_DGRAM)  # socket.AF_INET is like a tuple of (host, port) #not_sure
+                                   socket.SOCK_DGRAM)  # socket.AF_INET is like a tuple of (host, port)
     # socket.SOCK_DGRAM defined UDP communication protocol (sock.SOCK_STREAM for TCP)
 
     # Bind the socket to the port
