@@ -1,11 +1,12 @@
 # ESPTouch.py
 Python Implementation of ESPTouch app for android
+ESPTouch app is used to connect ESP8266 and ESP32 chips to internet (using a 2.45GHz Wifi)
 
 User will have to import ESPTouch.py file and run ESPTouch(wifi_ssid, wifi_password) function for implementation of code
 
 It has an inbuilt receiver which receives and parses data and gives MAC ID and IP address of the chip
 
-There are 2 keyword arguments for the ESPTouch() function 
+There are 2 keyword arguments (kwargs) for the ESPTouch() function
 1. number_of_devices_to_connect - determines number of devices you wish to connect (default = 1)
 2. timeout - time for which code will wait for UDP packets (default = 60)
 
